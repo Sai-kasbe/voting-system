@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS users (
 # Create candidates table
 c.execute('''
 CREATE TABLE IF NOT EXISTS candidates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    roll_no INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
-    party TEXT,
+    phone_no TEXT,
     role TEXT,
     image TEXT,
     votes INTEGER DEFAULT 0
@@ -50,9 +50,9 @@ CREATE TABLE IF NOT EXISTS result_schedule (
 # Create blockchain table for vote integrity
 c.execute('''
 CREATE TABLE IF NOT EXISTS blockchain (
-    vote_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    roll_no TEXT,
-    candidate TEXT,
+    roll_no INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    role TEXT,
     vote_hash TEXT,
     timestamp TEXT
 )
@@ -89,7 +89,7 @@ def login_admin(username, password):
 
 # Add candidate
 def add_candidate(name, party, role, image):
-    c.execute('INSERT INTO candidates (name, party, role, image, votes) VALUES (?, ?, ?, ?, 0)', (name, party, role, image))
+    c.execute('INSERT INTO candidates (name, roll_no, role, image, votes) VALUES (?, ?, ?, ?, 0)', (name, roll_no, role, image))
     conn.commit()
 
 # Get all candidates
