@@ -118,20 +118,46 @@ def user_login():
             st.error("Invalid credentials!")
 
 def user_dashboard(user):
-    st.header("🗳️ Vote Dashboard")
-    if user['has_voted']:
-        st.success("Status: ✅ VOTED")
-    else:
-        st.warning("Status: ❌ NOT VOTED")
+    st.header("🗳️ Voter Dashboard")
+
+    # Show user info
+    st.subheader("👤 Your Profile")
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.image(user['image'], caption=user['name'], width=150)
+    with col2:
+        st.markdown(f"**Name:** {user['name']}")
+        st.markdown(f"**Roll No:** {user['roll_no']}")
+        st.markdown(f"**Email:** {user['email']}")
+        st.markdown(f"**Phone:** {user['phone']}")
+        status = "✅ VOTED" if user['has_voted'] else "❌ NOT VOTED"
+        color = "green" if user['has_voted'] else "red"
+        st.markdown(f"<p style='color:{color}; font-weight:bold;'>Status: {status}</p>", unsafe_allow_html=True)
+
+    # Voting section
+    if not user['has_voted']:
+        st.subheader("🗳️ Cast Your Vote")
         conn, cursor = get_connection()
         candidates = pd.read_sql("SELECT * FROM candidates", conn)
-        selected = st.radio("Choose your candidate:", candidates['candidate_name'])
-        if st.button("Cast Vote"):
-            cursor.execute("UPDATE candidates SET votes = votes + 1 WHERE candidate_name=?", (selected,))
-            cursor.execute("UPDATE users SET has_voted=1 WHERE roll_no=?", (user['roll_no'],))
-            conn.commit()
-            record_vote_hash(user['roll_no'], selected)
-            st.success("Vote Cast Successfully!")
+        for idx, row in candidates.iterrows():
+            with st.expander(f"{row['candidate_name']} ({row['role']})"):
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.image(row['image'], width=100)
+                with col2:
+                    st.markdown(f"**Department:** {row['department']}")
+                    st.markdown(f"**Year/Sem:** {row['year_sem']}")
+                    st.markdown(f"**Role:** {row['role']}")
+                if st.button(f"Vote for {row['candidate_name']}", key=row['roll_no']):
+                    cursor.execute("UPDATE candidates SET votes = votes + 1 WHERE roll_no=?", (row['roll_no'],))
+                    cursor.execute("UPDATE users SET has_voted=1 WHERE roll_no=?", (user['roll_no'],))
+                    conn.commit()
+                    record_vote_hash(user['roll_no'], row['candidate_name'])
+                    st.success("✅ Vote Cast Successfully!")
+                    st.session_state.user_data['has_voted'] = 1
+                    st.rerun()
+        conn.close()
+
 
 # ====== ADMIN LOGIN ======
 def admin_login():
