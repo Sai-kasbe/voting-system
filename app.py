@@ -149,7 +149,7 @@ def admin_dashboard():
     with tab1:
         st.subheader("Add New Candidate (Party)")
         name = st.text_input("Candidate Name")
-        roll_no = st.text_input("Roll No (Unique)")
+        roll_no = st.text_input("Roll No (roll_no)")
         dept = st.text_input("Department")
         year_sem = st.text_input("Year/Sem")
         role = st.selectbox("Role", ["President", "Vice-President", "Secretary", "Treasurer"])
@@ -211,7 +211,7 @@ def admin_dashboard():
 def user_registration():
     st.subheader("📝 New User Registration")
     name = st.text_input("Full Name")
-    roll_no = st.text_input("Roll Number (Unique)")
+    roll_no = st.text_input("Roll Number (roll_no)")
     email = st.text_input("Email")
     phone = st.text_input("Phone")
     password = st.text_input("Password", type="password")
