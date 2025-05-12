@@ -1,3 +1,5 @@
+from database import create_tables, add_user
+
 import streamlit as st
 import pandas as pd
 import sqlite3
