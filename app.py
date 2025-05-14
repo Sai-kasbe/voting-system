@@ -11,10 +11,7 @@ st.set_page_config(page_title="KGRCET ONLINE ELECTION SYSTEM", layout="wide")
 
 st.markdown("""
     <style>
-    body {
-        background-color: #0D1B2A;
-        color: white;
-    }
+    body { background-color: #0D1B2A; color: white; }
     .stButton>button {
         background-color: #1B263B;
         color: white;
@@ -63,7 +60,6 @@ def create_tables():
         image TEXT,
         has_voted INTEGER DEFAULT 0
     )''')
-
     cursor.execute('''CREATE TABLE IF NOT EXISTS candidates (
         candidate_name TEXT,
         roll_no TEXT PRIMARY KEY,
@@ -73,13 +69,11 @@ def create_tables():
         image TEXT,
         votes INTEGER DEFAULT 0
     )''')
-
     cursor.execute('''CREATE TABLE IF NOT EXISTS result_schedule (
         id INTEGER PRIMARY KEY,
         result_date TEXT,
         is_announced INTEGER DEFAULT 0
     )''')
-
     cursor.execute('''CREATE TABLE IF NOT EXISTS blockchain (
         vote_id INTEGER PRIMARY KEY AUTOINCREMENT,
         roll_no TEXT,
@@ -87,7 +81,6 @@ def create_tables():
         vote_hash TEXT,
         timestamp TEXT
     )''')
-
     conn.commit()
     conn.close()
 
@@ -157,6 +150,14 @@ def user_dashboard(user):
                     st.rerun()
         conn.close()
 
+    # Show result if announced
+    conn, cursor = get_connection()
+    result = cursor.execute("SELECT * FROM result_schedule").fetchone()
+    if result and result[2] == 1:
+        st.subheader("🏆 Final Election Results")
+        result_df = pd.read_sql("SELECT candidate_name, role, votes FROM candidates ORDER BY votes DESC", conn)
+        st.dataframe(result_df)
+    conn.close()
 
 # ====== ADMIN LOGIN ======
 def admin_login():
@@ -171,12 +172,12 @@ def admin_login():
 
 def admin_dashboard():
     st.header("📊 Admin Dashboard")
-    tab1, tab2, tab3 = st.tabs(["➕ Add Candidate", "🧑‍💼 Registered Users", "📢 Result Settings"])
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Add Candidate", "🧑‍💼 Registered Users", "📢 Result Settings", "🗑️ Manage Data"])
 
     with tab1:
         st.subheader("Add New Candidate (Party)")
         name = st.text_input("Candidate Name")
-        roll_no = st.text_input("Roll No (roll_no)")
+        roll_no = st.text_input("Roll No")
         dept = st.text_input("Department")
         year_sem = st.text_input("Year/Sem")
         role = st.selectbox("Role", ["President", "Vice-President", "Secretary", "Treasurer"])
@@ -191,7 +192,6 @@ def admin_dashboard():
                     image_path = os.path.join("images", image_file.name)
                     with open(image_path, "wb") as f:
                         f.write(image_file.getbuffer())
-
                     conn, cursor = get_connection()
                     cursor.execute(
                         "INSERT INTO candidates (candidate_name, roll_no, department, year_sem, role, image, votes) VALUES (?, ?, ?, ?, ?, ?, 0)",
@@ -203,19 +203,12 @@ def admin_dashboard():
                     st.error("Candidate with this roll number already exists!")
                 except Exception as e:
                     st.error(f"Error while adding candidate: {e}")
-                finally:
-                    conn.close()
 
     with tab2:
         st.subheader("All Registered Users")
-        conn, cursor = get_connection()
-        try:
-            df = pd.read_sql("SELECT roll_no, name, email, phone, has_voted FROM users", conn)
-            st.dataframe(df)
-        except Exception as e:
-            st.error(f"Failed to load users: {e}")
-        finally:
-            conn.close()
+        conn, _ = get_connection()
+        df = pd.read_sql("SELECT roll_no, name, email, phone, has_voted FROM users", conn)
+        st.dataframe(df)
 
     with tab3:
         conn, cursor = get_connection()
@@ -232,46 +225,61 @@ def admin_dashboard():
         result = cursor.execute("SELECT * FROM result_schedule").fetchone()
         if result:
             st.info(f"Scheduled Date: {result[1]} | Announced: {'Yes' if result[2] else 'No'}")
-        conn.close()
+
+    with tab4:
+        st.subheader("🗃️ Manage Candidates and Users")
+        manage_tab = st.radio("Select Table to Manage", ["Candidates", "Users"])
+        conn, cursor = get_connection()
+        if manage_tab == "Candidates":
+            df = pd.read_sql("SELECT * FROM candidates", conn)
+            st.dataframe(df)
+            delete_roll = st.text_input("Enter Candidate Roll No to Delete")
+            if st.button("Delete Candidate"):
+                cursor.execute("DELETE FROM candidates WHERE roll_no=?", (delete_roll,))
+                conn.commit()
+                st.success("Candidate deleted.")
+                st.rerun()
+        else:
+            df = pd.read_sql("SELECT * FROM users", conn)
+            st.dataframe(df)
+            delete_user = st.text_input("Enter User Roll No to Delete")
+            if st.button("Delete User"):
+                cursor.execute("DELETE FROM users WHERE roll_no=?", (delete_user,))
+                conn.commit()
+                st.success("User deleted.")
+                st.rerun()
 
 # ====== REGISTRATION ======
 def user_registration():
     st.subheader("📝 New User Registration")
     name = st.text_input("Full Name")
-    roll_no = st.text_input("Roll Number (roll_no)")
+    roll_no = st.text_input("Roll Number")
     email = st.text_input("Email")
-    phone = st.text_input("Phone")
+    phone = st.text_input("Phone (10 digits)")
     password = st.text_input("Password", type="password")
     image = st.file_uploader("Upload Image")
 
     if st.button("Register"):
-        if not all([name, roll_no, email, phone, password, image]):
-            st.error("All fields including image are required.")
+        if not all([name, roll_no, email, phone, password, image]) or not phone.isdigit() or len(phone) != 10:
+            st.error("All fields required. Phone must be 10 digits.")
             return
 
         image_path = "images/" + image.name
-        try:
-            os.makedirs("images", exist_ok=True)
-            with open(image_path, "wb") as f:
-                f.write(image.getbuffer())
+        os.makedirs("images", exist_ok=True)
+        with open(image_path, "wb") as f:
+            f.write(image.getbuffer())
 
-            from database import add_user  # Import the correct function
-            success = add_user(roll_no, name, password, email, phone, image_path)
-            if success:
-                st.success("Registered successfully!")
-            else:
-                st.error("User with this roll number already exists!")
-        except Exception as e:
-            st.error(f"Error: {e}")
-        finally:
-            pass
-            
+        success = add_user(roll_no, name, password, email, phone, image_path)
+        if success:
+            st.success("Registered successfully!")
+        else:
+            st.error("User already exists!")
 
 # ====== FORGOT PASSWORD ======
 def forgot_password():
     st.subheader("🔑 Forgot Password")
-    roll_no = st.text_input("Enter your registered Roll Number")
-    email = st.text_input("Enter your registered Email")
+    roll_no = st.text_input("Registered Roll Number")
+    email = st.text_input("Registered Email")
     new_pass = st.text_input("New Password", type="password")
     if st.button("Reset Password"):
         conn, cursor = get_connection()
@@ -279,9 +287,9 @@ def forgot_password():
         if cursor.fetchone():
             cursor.execute("UPDATE users SET password=? WHERE roll_no=?", (hash_password(new_pass), roll_no))
             conn.commit()
-            st.success("Password updated successfully!")
+            st.success("Password updated!")
         else:
-            st.error("Invalid roll number or email!")
+            st.error("Invalid roll or email.")
 
 # ====== MAIN ======
 def main():
@@ -298,17 +306,14 @@ def main():
         if st.button("Logout"):
             st.session_state.user_logged_in = False
             st.session_state.user_data = None
-            st.success("User logged out!")
 
     elif st.session_state.admin_logged_in:
         admin_dashboard()
         if st.button("Logout"):
             st.session_state.admin_logged_in = False
-            st.success("Admin logged out!")
 
     else:
         page = st.sidebar.selectbox("Choose Page", ["Home", "User Login", "Admin Login", "Register", "Forgot Password"])
-
         if page == "User Login":
             user_login()
         elif page == "Admin Login":
@@ -318,8 +323,7 @@ def main():
         elif page == "Forgot Password":
             forgot_password()
         else:
-            st.markdown("Welcome to KGRCET's transparent, secure, blockchain-based Online Voting System.")
-            st.markdown("Please use the sidebar to navigate.")
+            st.markdown("Welcome to KGRCET's secure, blockchain-powered online voting system. Use the sidebar to navigate.")
 
 if __name__ == "__main__":
     main()
