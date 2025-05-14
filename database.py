@@ -1,16 +1,19 @@
 import sqlite3
 import hashlib
 
+# ====== Database Connection ======
 def get_connection():
     conn = sqlite3.connect("voting_app.db", check_same_thread=False)
     return conn, conn.cursor()
 
+# ====== Hashing Function ======
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# ====== Create Tables If Not Exist ======
 def create_tables():
     conn, cursor = get_connection()
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             roll_no TEXT PRIMARY KEY,
@@ -56,10 +59,11 @@ def create_tables():
     conn.commit()
     conn.close()
 
+# ====== Add New User ======
 def add_user(roll_no, name, password, email, phone, image):
     conn, cursor = get_connection()
     try:
-        cursor.execute("INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, 0)", 
+        cursor.execute("INSERT INTO users (roll_no, name, password, email, phone, image, has_voted) VALUES (?, ?, ?, ?, ?, ?, 0)",
                        (roll_no, name, hash_password(password), email, phone, image))
         conn.commit()
         return True
